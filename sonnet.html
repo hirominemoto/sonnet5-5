@@ -98,14 +98,19 @@ li::marker{color:var(--coral)}
 @keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 
 /* ---- controls ---- */
-.progress{position:fixed;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.08);z-index:10}
+.progress{position:fixed;left:0;right:0;bottom:0;height:6px;background:rgba(255,255,255,.08);z-index:10}
 .progress i{display:block;height:100%;width:0;background:var(--coral);transition:width .4s ease}
-.hud{position:fixed;right:16px;bottom:16px;z-index:10;display:flex;gap:8px;align-items:center;opacity:.55;transition:opacity .2s}
+.hud{position:fixed;right:24px;bottom:24px;z-index:10;display:flex;gap:12px;align-items:center;opacity:.8;transition:opacity .2s}
 .hud:hover,.hud:focus-within{opacity:1}
-.hud button{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:rgba(30,34,42,.92);color:var(--paper);font:inherit;font-size:20px;line-height:1;cursor:pointer}
+.hud button{width:56px;height:56px;border-radius:50%;border:1px solid var(--line);background:rgba(30,34,42,.92);color:var(--paper);font:inherit;font-size:30px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.hud button:hover:not(:disabled){border-color:var(--coral);color:var(--coral)}
+.hud button:disabled{opacity:.3;cursor:default}
 .hud button:focus-visible{outline:2px solid var(--coral);outline-offset:2px}
-.hud .pg{font-size:14px;color:var(--muted);min-width:56px;text-align:center;font-variant-numeric:tabular-nums}
-.hint{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:10;font-size:14px;color:var(--muted);background:rgba(30,34,42,.92);border:1px solid var(--line);padding:8px 18px;border-radius:999px;transition:opacity .6s;white-space:nowrap}
+.hud .restart{width:auto;height:56px;border-radius:999px;padding:0 26px;background:var(--coral);border-color:var(--coral);color:var(--ink);font-size:20px;font-weight:700;white-space:nowrap}
+.hud .restart:hover:not(:disabled){background:#F58559;border-color:#F58559;color:var(--ink)}
+.hud .restart[hidden]{display:none}
+.hud .pg{font-size:20px;color:var(--muted);min-width:88px;text-align:center;font-variant-numeric:tabular-nums}
+.hint{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:10;font-size:16px;color:var(--muted);background:rgba(30,34,42,.92);border:1px solid var(--line);padding:8px 18px;border-radius:999px;transition:opacity .6s;white-space:nowrap}
 .hint.gone{opacity:0;pointer-events:none}
 
 @media (prefers-reduced-motion:reduce){
@@ -367,9 +372,10 @@ li::marker{color:var(--coral)}
 
 <div class="progress" aria-hidden="true"><i id="bar"></i></div>
 <div class="hud" role="group" aria-label="スライド操作">
-  <button id="prev" type="button" aria-label="前のスライド">‹</button>
+  <button id="restart" class="restart" type="button" hidden>↺ 最初に戻る</button>
+  <button id="prev" type="button" aria-label="前のスライド"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
   <span class="pg" id="pg" aria-live="polite">1 / 11</span>
-  <button id="next" type="button" aria-label="次のスライド">›</button>
+  <button id="next" type="button" aria-label="次のスライド"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
 </div>
 <p class="hint" id="hint">→ キー・クリック・スワイプで進みます（F でフルスクリーン）</p>
 
@@ -378,6 +384,7 @@ li::marker{color:var(--coral)}
   var slides=[].slice.call(document.querySelectorAll('.slide'));
   var stage=document.getElementById('stage');
   var bar=document.getElementById('bar'), pg=document.getElementById('pg'), hint=document.getElementById('hint');
+  var btnPrev=document.getElementById('prev'), btnNext=document.getElementById('next'), btnRestart=document.getElementById('restart');
   var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var cur=-1, token=0;
 
@@ -412,14 +419,18 @@ li::marker{color:var(--coral)}
     runCounts(slides[n]);
     bar.style.width=((n+1)/slides.length*100)+'%';
     pg.textContent=(n+1)+' / '+slides.length;
+    btnPrev.disabled=(n===0);
+    btnNext.disabled=(n===slides.length-1);
+    btnRestart.hidden=(n!==slides.length-1);
     if(!fromHash && history.replaceState) history.replaceState(null,'','#'+(n+1));
     if(n>0) hint.classList.add('gone');
   }
   function next(){ go(cur+1); }
   function prev(){ go(cur-1); }
 
-  document.getElementById('next').addEventListener('click', function(e){ e.stopPropagation(); next(); });
-  document.getElementById('prev').addEventListener('click', function(e){ e.stopPropagation(); prev(); });
+  btnNext.addEventListener('click', function(e){ e.stopPropagation(); next(); });
+  btnPrev.addEventListener('click', function(e){ e.stopPropagation(); prev(); });
+  btnRestart.addEventListener('click', function(e){ e.stopPropagation(); go(0); });
 
   document.addEventListener('click', function(e){
     if(e.target.closest('.hud')) return;
@@ -428,6 +439,7 @@ li::marker{color:var(--coral)}
   document.addEventListener('keydown', function(e){
     if(e.metaKey||e.ctrlKey||e.altKey) return;
     var k=e.key;
+    if((k==='Enter'||k===' ') && e.target.closest && e.target.closest('button')) return;
     if(k==='ArrowRight'||k==='ArrowDown'||k==='PageDown'||k===' '||k==='Enter'){ e.preventDefault(); next(); }
     else if(k==='ArrowLeft'||k==='ArrowUp'||k==='PageUp'||k==='Backspace'){ e.preventDefault(); prev(); }
     else if(k==='Home'){ e.preventDefault(); go(0); }
